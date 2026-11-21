@@ -7,6 +7,7 @@
 //              que falta a classificação quando a pessoa escreve só "substantivo")
 //   opcoes:    as classificações possíveis. Cada uma tem:
 //                rotulo:  texto exibido na sugestão e na correção
+//                curto:   (opcional) nome no botão de seleção; sem ele, usa o rótulo sem o nome do tópico
 //                aceitas: outras formas de escrever a mesma resposta
 //                resumo:  lembrete mostrado quando a pessoa erra
 //
@@ -99,31 +100,37 @@ const TOPICOS = {
     apelidos: ["adverbio", "locucao adverbial", "adv"],
     opcoes: {
       tempo: {
+        curto: "Tempo",
         rotulo: "Advérbio de Tempo",
         aceitas: ["adv de tempo", "tempo"],
         resumo: "Advérbio de tempo indica quando o fato ocorre: hoje, ontem, amanhã, cedo, tarde, já, sempre, nunca, logo, depois.",
       },
       lugar: {
+        curto: "Lugar",
         rotulo: "Advérbio de Lugar",
         aceitas: ["adv de lugar", "lugar"],
         resumo: "Advérbio de lugar indica onde o fato ocorre: aqui, ali, lá, cá, perto, longe, acima, abaixo, dentro, fora.",
       },
       modo: {
+        curto: "Modo",
         rotulo: "Advérbio de Modo",
         aceitas: ["adv de modo", "modo"],
         resumo: "Advérbio de modo indica como o fato ocorre: bem, mal, assim, depressa, devagar e a maioria das palavras terminadas em -mente.",
       },
       loc_tempo: {
+        curto: "Locução de Tempo",
         rotulo: "Locução Adverbial de Tempo",
         aceitas: [],
         resumo: "Locução adverbial é um grupo de palavras (geralmente preposição + substantivo/advérbio) com valor de advérbio. A de tempo indica quando: à noite, de manhã, de vez em quando, em breve.",
       },
       loc_lugar: {
+        curto: "Locução de Lugar",
         rotulo: "Locução Adverbial de Lugar",
         aceitas: [],
         resumo: "Locução adverbial é um grupo de palavras com valor de advérbio. A de lugar indica onde: em casa, ao lado, por perto, de longe, à direita.",
       },
       loc_modo: {
+        curto: "Locução de Modo",
         rotulo: "Locução Adverbial de Modo",
         aceitas: [],
         resumo: "Locução adverbial é um grupo de palavras com valor de advérbio. A de modo indica como: às pressas, em silêncio, à vontade, de cor, passo a passo.",
@@ -203,26 +210,31 @@ const TOPICOS = {
     apelidos: ["predicacao verbal", "predicacao", "transitividade"],
     opcoes: {
       vtd: {
+        curto: "VTD",
         rotulo: "Verbo Transitivo Direto (VTD)",
         aceitas: ["vtd", "verbo transitivo direto", "transitivo direto"],
         resumo: "VTD exige complemento sem preposição obrigatória (objeto direto): “Comprei um livro”.",
       },
       vti: {
+        curto: "VTI",
         rotulo: "Verbo Transitivo Indireto (VTI)",
         aceitas: ["vti", "verbo transitivo indireto", "transitivo indireto"],
         resumo: "VTI exige complemento com preposição obrigatória (objeto indireto): “Gosto de música”, “Obedeça aos pais”.",
       },
       vtdi: {
+        curto: "VTDI",
         rotulo: "Verbo Transitivo Direto e Indireto (VTDI)",
         aceitas: ["vtdi", "verbo transitivo direto e indireto", "transitivo direto e indireto", "bitransitivo", "verbo bitransitivo"],
         resumo: "VTDI exige dois complementos: um sem preposição (OD) e outro com preposição (OI): “Entreguei o relatório ao chefe”.",
       },
       vi: {
+        curto: "VI",
         rotulo: "Verbo Intransitivo (VI)",
         aceitas: ["vi", "verbo intransitivo", "intransitivo"],
         resumo: "VI tem sentido completo e não exige complemento. Pode vir acompanhado de adjuntos adverbiais: “O bebê dormiu cedo”, “Fomos ao cinema”.",
       },
       vl: {
+        curto: "VL",
         rotulo: "Verbo de Ligação (VL)",
         aceitas: ["vl", "verbo de ligacao", "ligacao"],
         resumo: "VL não indica ação: liga o sujeito a uma característica (predicativo do sujeito). Principais: ser, estar, parecer, permanecer, ficar, continuar, andar, virar, tornar-se.",
@@ -236,31 +248,37 @@ const TOPICOS = {
     apelidos: ["complemento verbal", "complemento", "objeto"],
     opcoes: {
       od: {
+        curto: "Direto",
         rotulo: "Objeto Direto",
         aceitas: ["od"],
         resumo: "Objeto direto completa o sentido de um VTD sem preposição: “Comprei frutas”.",
       },
       od_prep: {
+        curto: "Direto Preposicionado",
         rotulo: "Objeto Direto Preposicionado",
         aceitas: ["od preposicionado", "odp"],
         resumo: "Objeto direto preposicionado completa um VTD, mas vem com preposição não exigida pelo verbo: com nomes de Deus/pessoas (“Amar a Deus”), pronomes oblíquos tônicos (“Feriu a si mesmo”), sentido partitivo (“Comeu do bolo”) ou para evitar ambiguidade.",
       },
       od_pleo: {
+        curto: "Direto Pleonástico",
         rotulo: "Objeto Direto Pleonástico",
         aceitas: ["od pleonastico"],
         resumo: "Objeto direto pleonástico é a repetição do objeto direto por meio de pronome oblíquo, para dar ênfase: “O livro, li-o ontem”.",
       },
       od_interno: {
+        curto: "Direto Interno",
         rotulo: "Objeto Direto Interno",
         aceitas: ["objeto direto cognato", "objeto direto interno ou cognato", "objeto cognato", "objeto interno", "od interno", "od cognato"],
         resumo: "Objeto direto interno (cognato) é o objeto de um verbo normalmente intransitivo, com o mesmo radical ou campo de sentido do verbo, geralmente acompanhado de adjunto: “Viveu uma vida tranquila”, “Chorou lágrimas amargas”.",
       },
       oi: {
+        curto: "Indireto",
         rotulo: "Objeto Indireto",
         aceitas: ["oi"],
         resumo: "Objeto indireto completa o sentido de um VTI ou VTDI por meio de preposição exigida pelo verbo: “Gosto de música”, “Entreguei a carta ao diretor”. O pronome “lhe” costuma ser objeto indireto.",
       },
       oi_pleo: {
+        curto: "Indireto Pleonástico",
         rotulo: "Objeto Indireto Pleonástico",
         aceitas: ["oi pleonastico"],
         resumo: "Objeto indireto pleonástico é a repetição do objeto indireto por meio de pronome oblíquo, para dar ênfase: “Ao diretor, entreguei-lhe a carta”.",

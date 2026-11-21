@@ -8,7 +8,10 @@ Enquanto digita, o site sugere as classificações possíveis. Se errar, o site 
 
 ## Sessão de treino
 
-1. Escolha os tópicos e a quantidade de perguntas (ex.: 70). As perguntas são distribuídas
+1. Escolha os tópicos e, dentro de cada um, quais classificações treinar (ex.: em Complemento
+   Verbal, só Objeto Direto e Objeto Indireto). A caixa do tópico marca ou desmarca todas;
+   as sugestões de resposta mostram só as classificações escolhidas.
+   Depois, defina a quantidade de perguntas (ex.: 70). As perguntas são distribuídas
    de forma equilibrada entre os tópicos; só há repetição se a quantidade passar do banco de frases.
 2. Durante a sessão, um cronômetro marca o tempo e o placar mostra acertos e erros.
    “Encerrar sessão” gera o relatório com o que já foi respondido.

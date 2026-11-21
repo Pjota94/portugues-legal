@@ -168,7 +168,7 @@
     if (!consulta.length) return [];
     const resultado = [];
     for (const o of RESPOSTAS) {
-      if (!sessao.topicos.includes(o.topico)) continue;
+      if (!sessao.selecao[o.topico]?.includes(o.chave)) continue;
       let melhor = -1;
       for (const f of o.formas) melhor = Math.max(melhor, casa(consulta, f));
       if (melhor > 0) resultado.push({ o, pontos: melhor });
@@ -275,27 +275,96 @@
 
   // ---------- tela de configuração ----------
 
-  function montarConfig() {
-    const salvos = lerStorage(CHAVE_TOPICOS, []);
-    listaTopicos.textContent = "";
-    for (const [chave, info] of Object.entries(TOPICOS)) {
-      const qtd = EXERCICIOS.filter((e) => e.topico === chave).length;
-      if (!qtd) continue;
+  // Seleção salva: { topico: [chaves das classificações] }.
+  // Versões antigas salvavam só a lista de tópicos; nesse caso, marca todas as classificações.
+  function carregarSelecaoSalva() {
+    const salvo = lerStorage(CHAVE_TOPICOS, {});
+    const sel = {};
+    if (Array.isArray(salvo)) {
+      for (const t of salvo) if (TOPICOS[t]) sel[t] = Object.keys(TOPICOS[t].opcoes);
+    } else if (salvo && typeof salvo === "object") {
+      for (const [t, chaves] of Object.entries(salvo)) {
+        if (!TOPICOS[t] || !Array.isArray(chaves)) continue;
+        const validas = chaves.filter((c) => c in TOPICOS[t].opcoes);
+        if (validas.length) sel[t] = validas;
+      }
+    }
+    return sel;
+  }
 
-      const label = el("label", "topico-opcao");
+  // Deixa a caixa do tópico coerente com os botões das classificações:
+  // marcada (todas), desmarcada (nenhuma) ou parcial (algumas).
+  function sincronizarTopico(cartao) {
+    const cb = cartao.querySelector(".topico-cb");
+    const pilulas = [...cartao.querySelectorAll(".pilula")];
+    if (!pilulas.length) {
+      cartao.classList.toggle("marcado", cb.checked);
+      return;
+    }
+    const ligadas = pilulas.filter((p) => p.getAttribute("aria-pressed") === "true").length;
+    cb.checked = ligadas > 0;
+    cb.indeterminate = ligadas > 0 && ligadas < pilulas.length;
+    cartao.dataset.parcial = cb.indeterminate ? "1" : "";
+    cartao.classList.toggle("marcado", ligadas > 0);
+    cartao.querySelector(".topico-qtd").textContent = contarFrases(cartao.dataset.topico, lerOpcoesCartao(cartao)) + " frases";
+  }
+
+  function lerOpcoesCartao(cartao) {
+    const pilulas = [...cartao.querySelectorAll(".pilula")];
+    if (!pilulas.length) {
+      return cartao.querySelector(".topico-cb").checked ? Object.keys(TOPICOS[cartao.dataset.topico].opcoes) : [];
+    }
+    return pilulas.filter((p) => p.getAttribute("aria-pressed") === "true").map((p) => p.dataset.chave);
+  }
+
+  function contarFrases(topico, chaves) {
+    return EXERCICIOS.filter((e) => e.topico === topico && (!chaves || chaves.includes(e.resposta))).length;
+  }
+
+  function montarConfig() {
+    const salvos = carregarSelecaoSalva();
+    listaTopicos.textContent = "";
+    for (const [topico, info] of Object.entries(TOPICOS)) {
+      const total = contarFrases(topico);
+      if (!total) continue;
+
+      const cartao = el("div", "topico-opcao");
+      cartao.dataset.topico = topico;
+
+      const cabecalho = el("label", "topico-cabecalho");
       const cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.value = chave;
-      cb.checked = Array.isArray(salvos) && salvos.includes(chave);
-
-      const texto = el("span", "topico-texto");
+      cb.className = "topico-cb";
+      cb.checked = !!salvos[topico];
       const linha = el("span", "topico-linha");
-      linha.append(el("span", "topico-nome", info.nome), el("span", "topico-qtd", qtd + " frases"));
-      const rotulos = Object.values(info.opcoes).map((o) => o.rotulo.replace(/\s*\(.*?\)/, ""));
-      texto.append(linha, el("span", "topico-classes", rotulos.length > 1 ? rotulos.join(" · ") : "Só a classe gramatical"));
+      linha.append(el("span", "topico-nome", info.nome), el("span", "topico-qtd", total + " frases"));
+      cabecalho.append(cb, linha);
+      cartao.append(cabecalho);
 
-      label.append(cb, texto);
-      listaTopicos.append(label);
+      const opcoes = Object.entries(info.opcoes);
+      if (opcoes.length > 1) {
+        const grupo = el("div", "pilulas");
+        grupo.setAttribute("role", "group");
+        grupo.setAttribute("aria-label", "Classificações de " + info.nome);
+        for (const [chave, op] of opcoes) {
+          const n = contarFrases(topico, [chave]);
+          if (!n) continue;
+          const b = el("button", "pilula");
+          b.type = "button";
+          b.dataset.chave = chave;
+          b.setAttribute("aria-pressed", String(!!salvos[topico]?.includes(chave)));
+          const nomeCurto = op.curto || op.rotulo.replace(/\s*\(.*?\)/, "").replace(info.nome + " ", "");
+          b.append(el("span", null, nomeCurto), el("small", null, String(n)));
+          b.title = op.rotulo + " · " + n + " frases";
+          grupo.append(b);
+        }
+        cartao.append(grupo);
+      } else {
+        cartao.append(el("span", "topico-classes", "Só a classe gramatical"));
+      }
+
+      listaTopicos.append(cartao);
+      sincronizarTopico(cartao);
     }
 
     const qtdSalva = Number(lerStorage(CHAVE_QTD, 20));
@@ -304,27 +373,56 @@
     montarHistorico();
   }
 
+  // Caixa do tópico: liga ou desliga todas as classificações dele.
+  listaTopicos.addEventListener("change", (ev) => {
+    const cb = ev.target.closest(".topico-cb");
+    if (!cb) return;
+    const cartao = cb.closest(".topico-opcao");
+    // Tópico parcialmente marcado: o clique completa a seleção em vez de limpar.
+    if (cartao.dataset.parcial === "1") cb.checked = true;
+    cartao.querySelectorAll(".pilula").forEach((p) => p.setAttribute("aria-pressed", String(cb.checked)));
+    sincronizarTopico(cartao);
+    atualizarInfoQtd();
+  });
+
+  // Botão de classificação: liga ou desliga só ela.
+  listaTopicos.addEventListener("click", (ev) => {
+    const p = ev.target.closest(".pilula");
+    if (!p) return;
+    p.setAttribute("aria-pressed", String(p.getAttribute("aria-pressed") !== "true"));
+    sincronizarTopico(p.closest(".topico-opcao"));
+    atualizarInfoQtd();
+  });
+
   function lerSelecao() {
-    return Array.from(listaTopicos.querySelectorAll("input:checked")).map((cb) => cb.value);
+    const sel = {};
+    for (const cartao of listaTopicos.querySelectorAll(".topico-opcao")) {
+      const chaves = lerOpcoesCartao(cartao);
+      if (chaves.length) sel[cartao.dataset.topico] = chaves;
+    }
+    return sel;
+  }
+
+  function frasesDaSelecao(sel) {
+    return EXERCICIOS.filter((e) => sel[e.topico]?.includes(e.resposta));
   }
 
   function atualizarInfoQtd() {
     const sel = lerSelecao();
-    const disponiveis = EXERCICIOS.filter((e) => sel.includes(e.topico)).length;
+    const disponiveis = frasesDaSelecao(sel).length;
     const qtd = Number(inputQtd.value);
     document.querySelectorAll("#atalhos-qtd .chip-btn").forEach((b) => {
       b.classList.toggle("ativo", Number(b.dataset.qtd) === qtd);
     });
-    if (!sel.length) {
-      infoQtd.textContent = "Selecione pelo menos um tópico.";
+    if (!disponiveis) {
+      infoQtd.textContent = "Selecione pelo menos um tópico ou classificação.";
     } else if (qtd > disponiveis) {
-      infoQtd.textContent = `Os tópicos escolhidos têm ${disponiveis} frases. Algumas vão se repetir.`;
+      infoQtd.textContent = `A seleção tem ${disponiveis} frases. Algumas vão se repetir.`;
     } else {
-      infoQtd.textContent = `${disponiveis} frases disponíveis nos tópicos escolhidos.`;
+      infoQtd.textContent = `${disponiveis} frases disponíveis na seleção.`;
     }
   }
 
-  listaTopicos.addEventListener("change", atualizarInfoQtd);
   inputQtd.addEventListener("input", atualizarInfoQtd);
   $("#atalhos-qtd").addEventListener("click", (ev) => {
     const b = ev.target.closest(".chip-btn");
@@ -334,17 +432,24 @@
   });
 
   $("#btn-todas").addEventListener("click", () => {
-    const cbs = listaTopicos.querySelectorAll("input");
-    const todas = Array.from(cbs).every((cb) => cb.checked);
-    cbs.forEach((cb) => (cb.checked = !todas));
+    const cartoes = [...listaTopicos.querySelectorAll(".topico-opcao")];
+    const tudo = cartoes.every((c) => {
+      const cb = c.querySelector(".topico-cb");
+      return cb.checked && !cb.indeterminate;
+    });
+    for (const c of cartoes) {
+      c.querySelector(".topico-cb").checked = !tudo;
+      c.querySelectorAll(".pilula").forEach((p) => p.setAttribute("aria-pressed", String(!tudo)));
+      sincronizarTopico(c);
+    }
     atualizarInfoQtd();
   });
 
   $("#btn-comecar").addEventListener("click", () => {
     selecionados = lerSelecao();
     const qtd = Math.floor(Number(inputQtd.value));
-    if (!selecionados.length) {
-      avisoConfig.textContent = "Selecione pelo menos um tópico.";
+    if (!frasesDaSelecao(selecionados).length) {
+      avisoConfig.textContent = "Selecione pelo menos um tópico ou classificação.";
       return;
     }
     if (!(qtd >= 1 && qtd <= MAX_PERGUNTAS)) {
@@ -360,9 +465,10 @@
 
   // Monta a lista de perguntas alternando entre os tópicos, para que todos apareçam
   // de forma equilibrada. Só repete frases se a quantidade pedida for maior que o banco.
-  function montarPerguntas(topicos, qtd) {
+  function montarPerguntas(sel, qtd) {
     const filas = {};
-    const repor = (t) => (filas[t] = embaralhar(EXERCICIOS.filter((e) => e.topico === t)));
+    const repor = (t) => (filas[t] = embaralhar(EXERCICIOS.filter((e) => e.topico === t && sel[t].includes(e.resposta))));
+    const topicos = Object.keys(sel);
     topicos.forEach(repor);
     const ordem = embaralhar(topicos);
     const escolhidas = [];
@@ -410,10 +516,12 @@
 
   // ---------- sessão de treino ----------
 
-  function iniciarSessao(perguntas, topicos) {
+  // sel: { topico: [chaves] } — define as classificações sugeridas enquanto a pessoa digita.
+  function iniciarSessao(perguntas, sel) {
     sessao = {
       perguntas,
-      topicos: [...new Set(topicos)],
+      selecao: sel,
+      topicos: Object.keys(sel),
       indice: -1,
       respostas: [],
       inicio: Date.now(),
@@ -514,7 +622,7 @@
 
     const escolha = identificar(resposta);
     if (!escolha) {
-      const opcoes = Object.values(TOPICOS[atual.topico].opcoes).map((o) => o.rotulo).join(", ");
+      const opcoes = sessao.selecao[atual.topico].map((k) => rotulo(atual.topico, k)).join(", ");
       if (soOTopico(resposta)) {
         mostrarFeedback("aviso", "Falta a classificação.", ["Escreva a resposta completa. As opções deste tópico são: " + opcoes + "."]);
       } else {
@@ -721,8 +829,10 @@
   $("#btn-refazer-erros").addEventListener("click", () => {
     const erros = sessao.respostas.filter((r) => !r.acertou).map((r) => r.exercicio);
     if (!erros.length) return;
-    const topicos = [...new Set(erros.map((e) => e.topico))];
-    iniciarSessao(embaralhar(erros), topicos);
+    // Mantém as mesmas classificações da sessão original nas sugestões.
+    const sel = {};
+    for (const e of erros) sel[e.topico] = sessao.selecao[e.topico];
+    iniciarSessao(embaralhar(erros), sel);
   });
 
   $("#btn-nova-sessao").addEventListener("click", () => {
