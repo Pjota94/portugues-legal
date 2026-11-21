@@ -2,26 +2,26 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Português Legal — Classes Gramaticais</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Português Legal</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topo">
     <h1>Português Legal</h1>
-    <p class="subtitulo">Treino de classes gramaticais para concursos</p>
+    <p class="subtitulo">Treino de gramática para concursos</p>
   </header>
 
   <main>
-    <!-- Tela 1: escolha das classes -->
+    <!-- Tela 1: escolha dos tópicos -->
     <section id="tela-config" class="cartao">
       <h2>O que você quer treinar?</h2>
-      <p class="instrucao">Selecione as classes gramaticais. Você verá frases com um trecho destacado e deverá escrever a qual classe ele pertence.</p>
+      <p class="instrucao">Escolha os tópicos. Em cada frase, um trecho vem destacado e você escreve a classificação completa dele, como “Substantivo Abstrato” ou “Objeto Direto Pleonástico”.</p>
 
-      <div id="lista-classes" class="lista-classes"></div>
+      <div id="lista-topicos" class="lista-topicos"></div>
 
       <div class="acoes">
-        <button type="button" id="btn-todas" class="btn secundario">Marcar / desmarcar todas</button>
+        <button type="button" id="btn-todas" class="btn secundario">Marcar / desmarcar todos</button>
         <button type="button" id="btn-comecar" class="btn primario">Começar treino</button>
       </div>
       <p id="aviso-config" class="aviso" role="alert"></p>
@@ -30,37 +30,54 @@
     <!-- Tela 2: treino -->
     <section id="tela-treino" hidden>
       <div class="barra-topo">
-        <button type="button" id="btn-voltar" class="btn link">← Trocar classes</button>
+        <button type="button" id="btn-voltar" class="btn link">← Trocar tópicos</button>
         <div class="placar">
-          <span class="placar-item acerto">✓ <b id="placar-acertos">0</b></span>
-          <span class="placar-item erro">✗ <b id="placar-erros">0</b></span>
+          <span class="placar-item acerto" title="Acertos">✓ <b id="placar-acertos">0</b></span>
+          <span class="placar-item erro" title="Erros">✗ <b id="placar-erros">0</b></span>
           <span class="placar-item">Frase <b id="progresso">0 / 0</b></span>
         </div>
       </div>
 
-      <div class="cartao">
-        <div class="em-treino">Treinando: <span id="em-treino"></span></div>
-        <p class="pergunta">Qual é a classe gramatical do termo destacado?</p>
+      <div class="cartao cartao-questao">
+        <p id="pergunta" class="pergunta"></p>
         <p id="frase" class="frase"></p>
 
-        <form id="form-resposta" autocomplete="off">
-          <label for="resposta" class="sr-only">Sua resposta</label>
-          <input id="resposta" type="text" placeholder="Ex.: artigo, preposição..." spellcheck="false">
-          <button type="submit" id="btn-responder" class="btn primario">Responder</button>
-          <button type="button" id="btn-proxima" class="btn primario" hidden>Próxima →</button>
+        <form id="form-resposta" autocomplete="off" novalidate>
+          <div class="campo">
+            <label for="resposta" class="sr-only">Sua resposta</label>
+            <input id="resposta" type="text" placeholder="Comece a digitar..." spellcheck="false"
+                   autocapitalize="off" autocorrect="off" enterkeyhint="send"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugestoes">
+            <ul id="sugestoes" class="sugestoes" role="listbox" hidden></ul>
+          </div>
+          <div class="botoes-resposta">
+            <button type="submit" id="btn-responder" class="btn primario">Responder</button>
+            <button type="button" id="btn-nao-sei" class="btn secundario">Não sei</button>
+            <button type="button" id="btn-proxima" class="btn primario" hidden>Próxima →</button>
+          </div>
         </form>
 
         <div id="feedback" class="feedback" role="status" aria-live="polite" hidden></div>
       </div>
 
-      <div class="cartao">
-        <h3>Desempenho nesta sessão</h3>
+      <details class="cartao desempenho-cartao" open>
+        <summary>Desempenho nesta sessão</summary>
         <div id="desempenho" class="desempenho"></div>
-      </div>
+      </details>
     </section>
   </main>
 
-  <script src="js/exercicios.js"></script>
+  <script src="js/topicos.js"></script>
+  <script src="js/dados/substantivo.js"></script>
+  <script src="js/dados/artigo.js"></script>
+  <script src="js/dados/adjetivo.js"></script>
+  <script src="js/dados/preposicao.js"></script>
+  <script src="js/dados/verbo.js"></script>
+  <script src="js/dados/adverbio.js"></script>
+  <script src="js/dados/pronome.js"></script>
+  <script src="js/dados/sujeito.js"></script>
+  <script src="js/dados/predicacao.js"></script>
+  <script src="js/dados/complemento.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

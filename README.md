@@ -1,11 +1,25 @@
 # Português Legal
 
-Site para treinar a identificação de classes gramaticais para concursos.
+Site para treinar gramática para concursos.
 
-O usuário escolhe quais classes quer praticar, recebe frases com um termo destacado
-e escreve a qual classe ele pertence. Se errar, o site explica o porquê.
+O usuário escolhe os tópicos, recebe frases com um trecho destacado e escreve a
+classificação completa (ex.: “Substantivo Abstrato”, “Objeto Direto Pleonástico”).
+Enquanto digita, o site sugere as classificações possíveis. Se errar, o site explica o porquê.
 
-Classes disponíveis: substantivo, artigo, adjetivo, preposição e verbo.
+## Tópicos
+
+| Tópico | Classificações | Frases |
+|---|---|---|
+| Substantivo | Concreto, Abstrato | 50 |
+| Artigo | Definido, Indefinido | 50 |
+| Verbo | Verbo, Locução Verbal | 50 |
+| Advérbio | Advérbio de Tempo/Lugar/Modo, Locução Adverbial de Tempo/Lugar/Modo | 50 |
+| Pronome | Pessoal, Possessivo, Demonstrativo, Indefinido, Interrogativo | 50 |
+| Sujeito | Simples, Composto, Oculto, Indeterminado, Inexistente | 50 |
+| Predicação Verbal | VTD, VTI, VTDI, VI, VL | 50 |
+| Complemento Verbal | Objeto Direto, OD Preposicionado, OD Pleonástico, OD Interno (cognato), Objeto Indireto, OI Pleonástico | 50 |
+| Adjetivo | (só a classe) | 11 |
+| Preposição | (só a classe) | 11 |
 
 ## Como usar
 
@@ -15,23 +29,29 @@ Também pode ser publicado direto no GitHub Pages.
 ## Estrutura
 
 - `index.html`: página
-- `css/style.css`: visual
-- `js/app.js`: lógica do treino
-- `js/exercicios.js`: classes gramaticais e banco de frases
+- `css/style.css`: visual (responsivo, tema claro e escuro)
+- `js/app.js`: lógica do treino e das sugestões
+- `js/topicos.js`: tópicos, classificações, respostas aceitas e resumos
+- `js/dados/<tópico>.js`: frases de cada tópico
+- `scripts/validar.js`: confere o banco de frases
 
 ## Adicionando frases
 
-Em `js/exercicios.js`, adicione um item em `EXERCICIOS`. O termo a ser classificado fica entre colchetes:
+Em `js/dados/<tópico>.js`, adicione um item. O trecho a ser classificado fica entre colchetes
+e `resposta` é a chave da classificação definida em `js/topicos.js`:
 
 ```js
 {
-  frase: "Assistimos [a] seminários interessantes.",
-  classe: "preposicao",
-  explicacao: "O verbo \"assistir\" (no sentido de ver) exige a preposição \"a\"...",
+  frase: "Os fiéis amam [a Deus] sobre todas as coisas.",
+  resposta: "od_prep",
+  explicacao: "“Amar” é VTD; a preposição aparece por se tratar de Deus...",
 },
 ```
 
-## Adicionando uma nova classe
+Depois rode `node scripts/validar.js` para conferir formato, chaves e duplicatas.
 
-Inclua a classe em `CLASSES` (nome, respostas aceitas e um resumo usado quando o usuário erra)
-e depois adicione frases com essa chave em `EXERCICIOS`.
+## Adicionando um tópico
+
+1. Inclua o tópico em `TOPICOS` (`js/topicos.js`) com suas opções.
+2. Crie `js/dados/<tópico>.js` chamando `registrarExercicios("<tópico>", [...])`.
+3. Adicione o `<script>` do novo arquivo no `index.html`, antes do `js/app.js`.
