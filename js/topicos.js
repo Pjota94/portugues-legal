@@ -293,3 +293,42 @@ const EXERCICIOS = [];
 function registrarExercicios(topico, lista) {
   for (const ex of lista) EXERCICIOS.push({ topico, ...ex });
 }
+
+// Modo avançado (análise da frase completa). Cada análise tem:
+//   frase:  a frase completa, sem colchetes
+//   termos: na ordem em que aparecem na frase. Cada termo tem:
+//     trecho:     o texto exato do termo na frase (ex.: "O menino", "amo", "de chocolate")
+//                 — ou, no lugar de trecho, sujeito: true para o sujeito que não aparece
+//                 na frase (oculto, indeterminado ou inexistente)
+//     resposta:   "<tópico>.<chave>" (ex.: "sujeito.simples", "predicacao.vtd", "complemento.od")
+//     explicacao: por que o termo tem essa classificação
+// Os arquivos em js/dados/analise*.js chamam registrarAnalises.
+const TOPICOS_ANALISE = ["sujeito", "predicacao", "complemento", "adverbio"];
+const ANALISES = [];
+
+function registrarAnalises(lista) {
+  ANALISES.push(...lista);
+}
+
+// Localiza cada termo na frase, em ordem. Devolve [{inicio, fim}] ou null para o sujeito
+// que não aparece. Lança erro se algum trecho não for encontrado.
+function localizarTermos(analise) {
+  const posicoes = [];
+  let desde = 0;
+  const letra = /[\p{L}\p{N}]/u;
+  for (const t of analise.termos) {
+    if (t.sujeito) {
+      posicoes.push(null);
+      continue;
+    }
+    let i = analise.frase.indexOf(t.trecho, desde);
+    // Exige que o trecho seja palavra inteira (não pedaço de outra palavra).
+    while (i >= 0 && (letra.test(analise.frase[i - 1] || "") || letra.test(analise.frase[i + t.trecho.length] || ""))) {
+      i = analise.frase.indexOf(t.trecho, i + 1);
+    }
+    if (i < 0) throw new Error(`Trecho "${t.trecho}" não encontrado (na ordem) em "${analise.frase}"`);
+    posicoes.push({ inicio: i, fim: i + t.trecho.length });
+    desde = i + t.trecho.length;
+  }
+  return posicoes;
+}

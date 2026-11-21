@@ -6,6 +6,16 @@ O usuário escolhe os tópicos, recebe frases com um trecho destacado e escreve 
 classificação completa (ex.: “Substantivo Abstrato”, “Objeto Direto Pleonástico”).
 Enquanto digita, o site sugere as classificações possíveis. Se errar, o site explica o porquê.
 
+## Modos
+
+- **Classificar termo**: uma frase por vez, com um trecho destacado para classificar.
+- **Análise da frase (avançado)**: a frase completa aparece com os termos numerados e,
+  abaixo, um campo para cada termo. Ex.: “Eu amo chocolate.” → Eu = Sujeito Simples,
+  amo = Verbo Transitivo Direto, chocolate = Objeto Direto. Quando o sujeito não aparece
+  (oculto, indeterminado, inexistente), há um campo “Sujeito” à parte. Usa as classificações
+  de sujeito, predicação verbal, complemento verbal e advérbio. 50 frases em `js/dados/analise.js`
+  (o formato está descrito em `js/topicos.js`).
+
 ## Sessão de treino
 
 1. Escolha os tópicos e, dentro de cada um, quais classificações treinar (ex.: em Complemento

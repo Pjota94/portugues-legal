@@ -3,6 +3,7 @@
 
   const CHAVE_TOPICOS = "portugues-legal:topicos";
   const CHAVE_QTD = "portugues-legal:quantidade";
+  const CHAVE_MODO = "portugues-legal:modo";
   const CHAVE_HISTORICO = "portugues-legal:historico";
   const MAX_SUGESTOES = 8;
   const MAX_PERGUNTAS = 500;
@@ -17,31 +18,46 @@
     relatorio: $("#tela-relatorio"),
   };
   const listaTopicos = $("#lista-topicos");
+  const blocoTopicos = $("#bloco-topicos");
   const inputQtd = $("#qtd-perguntas");
   const infoQtd = $("#info-qtd");
   const avisoConfig = $("#aviso-config");
-  const perguntaEl = $("#pergunta");
-  const fraseEl = $("#frase");
-  const form = $("#form-resposta");
-  const input = $("#resposta");
-  const listaSugestoes = $("#sugestoes");
-  const btnResponder = $("#btn-responder");
-  const btnNaoSei = $("#btn-nao-sei");
-  const btnProxima = $("#btn-proxima");
-  const feedback = $("#feedback");
   const cronometroEl = $("#cronometro");
   const placarAcertos = $("#placar-acertos");
   const placarErros = $("#placar-erros");
   const progresso = $("#progresso");
   const progressoBarra = $("#progresso-barra");
 
-  // Estado da sessão
-  let selecionados = [];
-  let sessao = null; // { perguntas, indice, respostas, inicio, fim, topicos }
+  // Modo "termo"
+  const cartaoTermo = $("#cartao-termo");
+  const perguntaEl = $("#pergunta");
+  const fraseEl = $("#frase");
+  const form = $("#form-resposta");
+  const input = $("#resposta");
+  const btnResponder = $("#btn-responder");
+  const btnNaoSei = $("#btn-nao-sei");
+  const btnProxima = $("#btn-proxima");
+  const feedback = $("#feedback");
+
+  // Modo "análise"
+  const cartaoAnalise = $("#cartao-analise");
+  const fraseAnaliseEl = $("#frase-analise");
+  const formAnalise = $("#form-analise");
+  const camposAnalise = $("#campos-analise");
+  const btnCorrigir = $("#btn-corrigir");
+  const btnNaoSeiAnalise = $("#btn-nao-sei-analise");
+  const btnProximaAnalise = $("#btn-proxima-analise");
+  const feedbackAnalise = $("#feedback-analise");
+
+  // Estado
+  // sessao: { modo, perguntas, selecao, topicos, indice, respostas, inicio, fim }
+  //   respostas: um registro por termo respondido (no modo análise, vários por frase)
+  let sessao = null;
   let atual = null;
   let respondida = false;
   let inicioPergunta = 0;
   let relogio = null;
+  let camposAtuais = []; // modo análise: [{ termo, input, auto, resultado }]
 
   // ---------- utilidades ----------
 
@@ -116,6 +132,22 @@
     return rotulo(topico, chave).replace(/\s*\(.*?\)/, "");
   }
 
+  function telaLarga() {
+    return window.matchMedia("(min-width: 700px)").matches;
+  }
+
+  // Frase com [trecho] → nós DOM com o trecho destacado.
+  function fraseComDestaque(frase) {
+    const frag = document.createDocumentFragment();
+    frase.split(/\[(.+?)\]/).forEach((parte, i) => {
+      if (i % 2 === 1) frag.append(el("mark", "alvo", parte));
+      else if (parte) frag.append(document.createTextNode(parte));
+    });
+    return frag;
+  }
+
+  // ---------- reconhecimento de respostas ----------
+
   // Índice de todas as respostas possíveis: cada classificação com as formas aceitas.
   const RESPOSTAS = [];
   for (const [topico, info] of Object.entries(TOPICOS)) {
@@ -129,27 +161,28 @@
     }
   }
 
-  // Descobre qual classificação o usuário escreveu.
-  // Em caso de empate entre tópicos, dá preferência ao tópico da frase atual.
-  function identificar(resposta) {
+  // Descobre qual classificação o usuário escreveu. Em caso de empate entre tópicos,
+  // dá preferência às classificações permitidas e ao tópico esperado.
+  function identificar(resposta, topicoEsperado, permitido) {
     const r = normalizar(resposta);
     if (!r) return null;
     const achadas = RESPOSTAS.filter((o) => o.formas.includes(r));
     if (!achadas.length) return null;
-    return achadas.find((o) => atual && o.topico === atual.topico) || achadas[0];
+    return (
+      achadas.find((o) => o.topico === topicoEsperado) ||
+      achadas.find((o) => permitido && permitido(o)) ||
+      achadas[0]
+    );
   }
 
-  // A pessoa escreveu só o nome do tópico (ex.: "substantivo"), sem a classificação?
-  function soOTopico(resposta) {
+  // A pessoa escreveu só o nome de um tópico (ex.: "substantivo"), sem a classificação?
+  function soOTopico(resposta, topico) {
     const r = normalizar(resposta);
-    const info = TOPICOS[atual.topico];
+    const info = TOPICOS[topico];
     return [info.nome, ...info.apelidos].some((a) => normalizar(a) === r);
   }
 
   // ---------- sugestões (autocompletar) ----------
-
-  let sugestoesAtuais = [];
-  let ativa = -1;
 
   // Cada palavra digitada precisa ser o começo de uma palavra da forma, na mesma ordem.
   function casa(consulta, forma) {
@@ -163,18 +196,20 @@
     return pal[0].startsWith(consulta[0]) ? 2 : 1;
   }
 
-  function calcularSugestoes(texto) {
+  function calcularSugestoes(texto, permitido) {
     const consulta = normalizar(texto).split(" ").filter(Boolean);
     if (!consulta.length) return [];
     const resultado = [];
     for (const o of RESPOSTAS) {
-      if (!sessao.selecao[o.topico]?.includes(o.chave)) continue;
+      if (!permitido(o)) continue;
       let melhor = -1;
       for (const f of o.formas) melhor = Math.max(melhor, casa(consulta, f));
       if (melhor > 0) resultado.push({ o, pontos: melhor });
     }
     resultado.sort((a, b) => b.pontos - a.pontos || a.o.rotulo.localeCompare(b.o.rotulo, "pt"));
-    if (resultado.length === 1 && normalizar(resultado[0].o.rotulo) === normalizar(texto)) return [];
+    // Texto já é uma resposta completa: não sugere nada (a lista não cobre os botões).
+    const alvo = normalizar(texto);
+    if (resultado.some((r) => normalizar(r.o.rotulo) === alvo)) return [];
     return resultado.slice(0, MAX_SUGESTOES).map((r) => r.o);
   }
 
@@ -195,85 +230,111 @@
     return frag;
   }
 
-  function mostrarSugestoes() {
-    if (respondida || !sessao) return fecharSugestoes();
-    sugestoesAtuais = calcularSugestoes(input.value);
-    ativa = -1;
-    listaSugestoes.textContent = "";
-    if (!sugestoesAtuais.length) return fecharSugestoes();
+  let contadorAuto = 0;
 
-    sugestoesAtuais.forEach((o, i) => {
-      const li = el("li", "sugestao");
-      li.id = "sug-" + i;
-      li.setAttribute("role", "option");
-      const texto = el("span");
-      texto.append(destacarCasamento(o.rotulo, input.value));
-      li.append(texto);
-      if (sessao.topicos.length > 1) li.append(el("span", "sugestao-topico", TOPICOS[o.topico].nome));
-      // pointerdown + preventDefault mantém o foco no campo (o teclado do celular não fecha).
-      li.addEventListener("pointerdown", (ev) => ev.preventDefault());
-      li.addEventListener("click", () => escolherSugestao(i));
-      listaSugestoes.append(li);
+  // Liga o autocompletar a um campo de texto.
+  //   permitido(o): quais classificações sugerir
+  //   mostrarTopico(): se exibe o nome do tópico ao lado de cada sugestão
+  //   aoEnter(ev): chamado quando Enter é pressionado sem sugestão ativa (opcional)
+  function ligarAutocompletar(campo, lista, permitido, mostrarTopico, aoEnter) {
+    const prefixo = "sug" + ++contadorAuto + "-";
+    let itens = [];
+    let ativa = -1;
+
+    function fechar() {
+      lista.hidden = true;
+      lista.textContent = "";
+      itens = [];
+      ativa = -1;
+      campo.setAttribute("aria-expanded", "false");
+      campo.removeAttribute("aria-activedescendant");
+    }
+
+    function escolher(i) {
+      const o = itens[i];
+      if (!o) return;
+      campo.value = o.rotulo;
+      fechar();
+      campo.focus();
+      campo.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function marcar(i) {
+      const lis = lista.children;
+      if (ativa >= 0 && lis[ativa]) lis[ativa].classList.remove("ativa");
+      ativa = i;
+      if (ativa >= 0 && lis[ativa]) {
+        lis[ativa].classList.add("ativa");
+        lis[ativa].scrollIntoView({ block: "nearest" });
+        campo.setAttribute("aria-activedescendant", lis[ativa].id);
+      }
+    }
+
+    function mostrar() {
+      if (campo.disabled) return fechar();
+      itens = calcularSugestoes(campo.value, permitido);
+      ativa = -1;
+      lista.textContent = "";
+      if (!itens.length) return fechar();
+      itens.forEach((o, i) => {
+        const li = el("li", "sugestao");
+        li.id = prefixo + i;
+        li.setAttribute("role", "option");
+        const texto = el("span");
+        texto.append(destacarCasamento(o.rotulo, campo.value));
+        li.append(texto);
+        if (mostrarTopico()) li.append(el("span", "sugestao-topico", TOPICOS[o.topico].nome));
+        // pointerdown + preventDefault mantém o foco no campo (o teclado do celular não fecha).
+        li.addEventListener("pointerdown", (ev) => ev.preventDefault());
+        li.addEventListener("click", () => escolher(i));
+        lista.append(li);
+      });
+      lista.hidden = false;
+      campo.setAttribute("aria-expanded", "true");
+    }
+
+    campo.setAttribute("role", "combobox");
+    campo.setAttribute("aria-autocomplete", "list");
+    campo.setAttribute("aria-expanded", "false");
+    if (!lista.id) lista.id = prefixo + "lista";
+    campo.setAttribute("aria-controls", lista.id);
+    lista.setAttribute("role", "listbox");
+
+    campo.addEventListener("input", mostrar);
+    campo.addEventListener("blur", () =>
+      setTimeout(() => {
+        if (document.activeElement !== campo) fechar();
+      }, 150)
+    );
+    campo.addEventListener("keydown", (ev) => {
+      const aberta = !lista.hidden && itens.length;
+      if (ev.key === "ArrowDown" && aberta) {
+        ev.preventDefault();
+        marcar((ativa + 1) % itens.length);
+      } else if (ev.key === "ArrowUp" && aberta) {
+        ev.preventDefault();
+        marcar(ativa <= 0 ? itens.length - 1 : ativa - 1);
+      } else if ((ev.key === "Enter" || ev.key === "Tab") && aberta && ativa >= 0) {
+        ev.preventDefault();
+        escolher(ativa);
+      } else if (ev.key === "Tab" && aberta && itens.length === 1) {
+        ev.preventDefault();
+        escolher(0);
+      } else if (ev.key === "Escape" && aberta) {
+        fechar();
+      } else if (ev.key === "Enter" && aoEnter) {
+        aoEnter(ev);
+      }
     });
-    listaSugestoes.hidden = false;
-    input.setAttribute("aria-expanded", "true");
+
+    return { fechar };
   }
-
-  function fecharSugestoes() {
-    listaSugestoes.hidden = true;
-    listaSugestoes.textContent = "";
-    sugestoesAtuais = [];
-    ativa = -1;
-    input.setAttribute("aria-expanded", "false");
-    input.removeAttribute("aria-activedescendant");
-  }
-
-  function marcarAtiva(i) {
-    const itens = listaSugestoes.children;
-    if (ativa >= 0 && itens[ativa]) itens[ativa].classList.remove("ativa");
-    ativa = i;
-    if (ativa >= 0 && itens[ativa]) {
-      itens[ativa].classList.add("ativa");
-      itens[ativa].scrollIntoView({ block: "nearest" });
-      input.setAttribute("aria-activedescendant", itens[ativa].id);
-    }
-  }
-
-  function escolherSugestao(i) {
-    const o = sugestoesAtuais[i];
-    if (!o) return;
-    input.value = o.rotulo;
-    fecharSugestoes();
-    input.focus();
-  }
-
-  input.addEventListener("input", mostrarSugestoes);
-  input.addEventListener("blur", () =>
-    setTimeout(() => {
-      if (document.activeElement !== input) fecharSugestoes();
-    }, 150)
-  );
-
-  input.addEventListener("keydown", (ev) => {
-    const aberta = !listaSugestoes.hidden && sugestoesAtuais.length;
-    if (ev.key === "ArrowDown" && aberta) {
-      ev.preventDefault();
-      marcarAtiva((ativa + 1) % sugestoesAtuais.length);
-    } else if (ev.key === "ArrowUp" && aberta) {
-      ev.preventDefault();
-      marcarAtiva(ativa <= 0 ? sugestoesAtuais.length - 1 : ativa - 1);
-    } else if ((ev.key === "Enter" || ev.key === "Tab") && aberta && ativa >= 0) {
-      ev.preventDefault();
-      escolherSugestao(ativa);
-    } else if (ev.key === "Tab" && aberta && sugestoesAtuais.length === 1) {
-      ev.preventDefault();
-      escolherSugestao(0);
-    } else if (ev.key === "Escape" && aberta) {
-      fecharSugestoes();
-    }
-  });
 
   // ---------- tela de configuração ----------
+
+  function modoEscolhido() {
+    return document.querySelector('input[name="modo"]:checked').value;
+  }
 
   // Seleção salva: { topico: [chaves das classificações] }.
   // Versões antigas salvavam só a lista de tópicos; nesse caso, marca todas as classificações.
@@ -367,11 +428,24 @@
       sincronizarTopico(cartao);
     }
 
+    const modoSalvo = lerStorage(CHAVE_MODO, "termo");
+    const radio = document.querySelector(`input[name="modo"][value="${modoSalvo === "analise" ? "analise" : "termo"}"]`);
+    radio.checked = true;
+
     const qtdSalva = Number(lerStorage(CHAVE_QTD, 20));
     if (qtdSalva >= 1 && qtdSalva <= MAX_PERGUNTAS) inputQtd.value = qtdSalva;
-    atualizarInfoQtd();
+    atualizarModo();
     montarHistorico();
   }
+
+  function atualizarModo() {
+    const analise = modoEscolhido() === "analise";
+    blocoTopicos.hidden = analise;
+    $("#titulo-qtd").textContent = analise ? "Quantidade de frases" : "Quantidade de perguntas";
+    atualizarInfoQtd();
+  }
+
+  document.querySelectorAll('input[name="modo"]').forEach((r) => r.addEventListener("change", atualizarModo));
 
   // Caixa do tópico: liga ou desliga todas as classificações dele.
   listaTopicos.addEventListener("change", (ev) => {
@@ -408,8 +482,8 @@
   }
 
   function atualizarInfoQtd() {
-    const sel = lerSelecao();
-    const disponiveis = frasesDaSelecao(sel).length;
+    const analise = modoEscolhido() === "analise";
+    const disponiveis = analise ? ANALISES.length : frasesDaSelecao(lerSelecao()).length;
     const qtd = Number(inputQtd.value);
     document.querySelectorAll("#atalhos-qtd .chip-btn").forEach((b) => {
       b.classList.toggle("ativo", Number(b.dataset.qtd) === qtd);
@@ -417,9 +491,11 @@
     if (!disponiveis) {
       infoQtd.textContent = "Selecione pelo menos um tópico ou classificação.";
     } else if (qtd > disponiveis) {
-      infoQtd.textContent = `A seleção tem ${disponiveis} frases. Algumas vão se repetir.`;
+      infoQtd.textContent = `${analise ? "O modo avançado" : "A seleção"} tem ${disponiveis} frases. Algumas vão se repetir.`;
     } else {
-      infoQtd.textContent = `${disponiveis} frases disponíveis na seleção.`;
+      infoQtd.textContent = analise
+        ? `${disponiveis} frases para análise completa.`
+        : `${disponiveis} frases disponíveis na seleção.`;
     }
   }
 
@@ -446,25 +522,41 @@
   });
 
   $("#btn-comecar").addEventListener("click", () => {
-    selecionados = lerSelecao();
+    const modo = modoEscolhido();
     const qtd = Math.floor(Number(inputQtd.value));
-    if (!frasesDaSelecao(selecionados).length) {
-      avisoConfig.textContent = "Selecione pelo menos um tópico ou classificação.";
-      return;
-    }
     if (!(qtd >= 1 && qtd <= MAX_PERGUNTAS)) {
-      avisoConfig.textContent = `Escolha uma quantidade entre 1 e ${MAX_PERGUNTAS} perguntas.`;
+      avisoConfig.textContent = `Escolha uma quantidade entre 1 e ${MAX_PERGUNTAS}.`;
       inputQtd.focus();
       return;
     }
-    avisoConfig.textContent = "";
-    gravarStorage(CHAVE_TOPICOS, selecionados);
+    gravarStorage(CHAVE_MODO, modo);
     gravarStorage(CHAVE_QTD, qtd);
-    iniciarSessao(montarPerguntas(selecionados, qtd), selecionados);
+
+    if (modo === "analise") {
+      avisoConfig.textContent = "";
+      iniciarSessao("analise", montarAnalises(qtd), selecaoAnalise());
+      return;
+    }
+
+    const sel = lerSelecao();
+    if (!frasesDaSelecao(sel).length) {
+      avisoConfig.textContent = "Selecione pelo menos um tópico ou classificação.";
+      return;
+    }
+    avisoConfig.textContent = "";
+    gravarStorage(CHAVE_TOPICOS, sel);
+    iniciarSessao("termo", montarPerguntas(sel, qtd), sel);
   });
 
-  // Monta a lista de perguntas alternando entre os tópicos, para que todos apareçam
-  // de forma equilibrada. Só repete frases se a quantidade pedida for maior que o banco.
+  // No modo análise, as sugestões incluem todas as classificações dos tópicos de análise.
+  function selecaoAnalise() {
+    const sel = {};
+    for (const t of TOPICOS_ANALISE) sel[t] = Object.keys(TOPICOS[t].opcoes);
+    return sel;
+  }
+
+  // Modo termo: alterna entre os tópicos para que todos apareçam de forma equilibrada.
+  // Só repete frases se a quantidade pedida for maior que o banco.
   function montarPerguntas(sel, qtd) {
     const filas = {};
     const repor = (t) => (filas[t] = embaralhar(EXERCICIOS.filter((e) => e.topico === t && sel[t].includes(e.resposta))));
@@ -481,6 +573,16 @@
     return embaralhar(escolhidas);
   }
 
+  function montarAnalises(qtd) {
+    const escolhidas = [];
+    let fila = [];
+    while (escolhidas.length < qtd) {
+      if (!fila.length) fila = embaralhar(ANALISES);
+      escolhidas.push(fila.pop());
+    }
+    return escolhidas;
+  }
+
   // ---------- histórico ----------
 
   function montarHistorico() {
@@ -494,13 +596,16 @@
     for (const h of hist.slice(0, 10)) {
       const tr = el("tr");
       const data = new Date(h.data);
+      const tdData = el("td", null, data.toLocaleDateString("pt-BR") + " " + data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+      if (h.modo === "analise") tdData.append(" ", el("span", "selo", "Avançado"));
+      const qtd = h.modo === "analise" ? `${h.frases} frases` : String(h.total);
       tr.append(
-        el("td", null, data.toLocaleDateString("pt-BR") + " " + data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })),
-        el("td", "num", String(h.total)),
-        el("td", "num", `${h.acertos} (${pct(h.acertos, h.total)}%)`),
+        tdData,
+        el("td", "num", qtd),
+        el("td", "num", `${h.acertos}/${h.total} (${pct(h.acertos, h.total)}%)`),
         el("td", "num", formatarTempo(h.tempo))
       );
-      tr.title = h.topicos.map((t) => TOPICOS[t]?.nome || t).join(", ");
+      tr.title = (h.topicos || []).map((t) => TOPICOS[t]?.nome || t).join(", ");
       corpo.append(tr);
     }
     $("#historico-cartao").hidden = false;
@@ -510,23 +615,34 @@
     if (!rel.total) return;
     const hist = lerStorage(CHAVE_HISTORICO, []);
     const lista = Array.isArray(hist) ? hist : [];
-    lista.unshift({ data: Date.now(), total: rel.total, acertos: rel.acertos, tempo: rel.tempo, topicos: sessao.topicos });
+    lista.unshift({
+      data: Date.now(),
+      modo: sessao.modo,
+      total: rel.total,
+      frases: rel.unidades,
+      acertos: rel.acertos,
+      tempo: rel.tempo,
+      topicos: sessao.topicos,
+    });
     gravarStorage(CHAVE_HISTORICO, lista.slice(0, 30));
   }
 
-  // ---------- sessão de treino ----------
+  // ---------- sessão ----------
 
-  // sel: { topico: [chaves] } — define as classificações sugeridas enquanto a pessoa digita.
-  function iniciarSessao(perguntas, sel) {
+  function iniciarSessao(modo, perguntas, sel) {
     sessao = {
+      modo,
       perguntas,
       selecao: sel,
       topicos: Object.keys(sel),
       indice: -1,
+      respondidas: 0, // perguntas (modo termo) ou frases (modo análise) concluídas
       respostas: [],
       inicio: Date.now(),
       fim: null,
     };
+    cartaoTermo.hidden = modo !== "termo";
+    cartaoAnalise.hidden = modo !== "analise";
     mostrarTela("treino");
     clearInterval(relogio);
     relogio = setInterval(atualizarCronometro, 1000);
@@ -538,107 +654,43 @@
     if (sessao) cronometroEl.textContent = formatarTempo((sessao.fim || Date.now()) - sessao.inicio);
   }
 
-  function renderFrase(frase) {
-    fraseEl.textContent = "";
-    frase.split(/\[(.+?)\]/).forEach((parte, i) => {
-      if (i % 2 === 1) fraseEl.append(el("mark", "alvo", parte));
-      else if (parte) fraseEl.append(document.createTextNode(parte));
-    });
-  }
-
-  function modoResposta(aberto) {
-    respondida = !aberto;
-    input.disabled = !aberto;
-    btnResponder.hidden = !aberto;
-    btnNaoSei.hidden = !aberto;
-    btnProxima.hidden = aberto;
-  }
-
   function proxima() {
-    fecharSugestoes();
+    autoTermo.fechar();
     sessao.indice++;
     if (sessao.indice >= sessao.perguntas.length) return finalizarSessao();
-
     atual = sessao.perguntas[sessao.indice];
-    perguntaEl.textContent = TOPICOS[atual.topico].pergunta;
-    renderFrase(atual.frase);
-    feedback.hidden = true;
-    input.value = "";
-    modoResposta(true);
-    btnProxima.textContent = sessao.indice === sessao.perguntas.length - 1 ? "Ver relatório →" : "Próxima →";
-    atualizarPlacar();
     inicioPergunta = Date.now();
-    // No celular, focar abre o teclado e pode esconder a frase; só foca em telas largas.
-    if (window.matchMedia("(min-width: 700px)").matches) input.focus();
+    if (sessao.modo === "analise") mostrarAnalise();
+    else mostrarTermo();
+    atualizarPlacar();
   }
 
-  function mostrarFeedback(tipo, titulo, paragrafos) {
-    feedback.textContent = "";
-    feedback.className = "feedback " + tipo;
-    feedback.append(el("strong", "feedback-titulo", titulo));
+  function rotuloBotaoProxima() {
+    return sessao.indice === sessao.perguntas.length - 1 ? "Ver relatório →" : "Próxima →";
+  }
+
+  function mostrarFeedback(alvo, tipo, titulo, paragrafos) {
+    alvo.textContent = "";
+    alvo.className = "feedback " + tipo;
+    alvo.append(el("strong", "feedback-titulo", titulo));
     for (const p of paragrafos.filter(Boolean)) {
       const par = el("p");
       if (Array.isArray(p)) par.append(el("b", null, p[0]), document.createTextNode(p[1]));
       else par.textContent = p;
-      feedback.append(par);
+      alvo.append(par);
     }
-    feedback.hidden = false;
+    alvo.hidden = false;
   }
 
-  function corrigir(escolha) {
-    const certa = rotulo(atual.topico, atual.resposta);
-    const resumoCerta = TOPICOS[atual.topico].opcoes[atual.resposta].resumo;
-    const acertou = !!escolha && escolha.topico === atual.topico && escolha.chave === atual.resposta;
-
-    sessao.respostas.push({
-      exercicio: atual,
-      escolha: escolha ? { topico: escolha.topico, chave: escolha.chave } : null,
-      acertou,
-      tempo: Date.now() - inicioPergunta,
-    });
-
-    if (acertou) {
-      mostrarFeedback("acerto", "Acertou! " + certa + ".", [atual.explicacao]);
-    } else {
-      const paragrafos = [atual.explicacao, ["Lembre-se: ", resumoCerta]];
-      if (escolha) {
-        paragrafos.push(["Você respondeu " + escolha.rotulo + ": ", TOPICOS[escolha.topico].opcoes[escolha.chave].resumo]);
-      }
-      mostrarFeedback("erro", (escolha ? "Errou. A resposta é " : "A resposta é ") + certa + ".", paragrafos);
-    }
-
-    modoResposta(false);
-    fecharSugestoes();
-    btnProxima.focus();
-    atualizarPlacar();
+  function atualizarPlacar() {
+    const acertos = sessao.respostas.filter((r) => r.acertou).length;
+    placarAcertos.textContent = acertos;
+    placarErros.textContent = sessao.respostas.length - acertos;
+    const total = sessao.perguntas.length;
+    const n = Math.min(sessao.indice + 1, total);
+    progresso.textContent = sessao.modo === "analise" ? `Frase ${n} de ${total}` : `Pergunta ${n} de ${total}`;
+    progressoBarra.style.width = (sessao.respondidas / total) * 100 + "%";
   }
-
-  form.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    if (respondida) return proxima();
-
-    const resposta = input.value;
-    if (!resposta.trim()) return input.focus();
-
-    const escolha = identificar(resposta);
-    if (!escolha) {
-      const opcoes = sessao.selecao[atual.topico].map((k) => rotulo(atual.topico, k)).join(", ");
-      if (soOTopico(resposta)) {
-        mostrarFeedback("aviso", "Falta a classificação.", ["Escreva a resposta completa. As opções deste tópico são: " + opcoes + "."]);
-      } else {
-        mostrarFeedback("aviso", "Não reconheci essa resposta.", ["Use uma das sugestões que aparecem enquanto você digita. Para esta frase, as opções são: " + opcoes + "."]);
-      }
-      fecharSugestoes();
-      input.select();
-      return;
-    }
-    corrigir(escolha);
-  });
-
-  btnNaoSei.addEventListener("click", () => {
-    if (!respondida) corrigir(null);
-  });
-  btnProxima.addEventListener("click", proxima);
 
   // Encerrar antes do fim gera o relatório só com o que foi respondido.
   $("#btn-encerrar").addEventListener("click", () => {
@@ -652,22 +704,273 @@
     finalizarSessao();
   });
 
-  function atualizarPlacar() {
-    const acertos = sessao.respostas.filter((r) => r.acertou).length;
-    placarAcertos.textContent = acertos;
-    placarErros.textContent = sessao.respostas.length - acertos;
-    const total = sessao.perguntas.length;
-    const n = Math.min(sessao.indice + 1, total);
-    progresso.textContent = `${n} de ${total}`;
-    progressoBarra.style.width = (sessao.respostas.length / total) * 100 + "%";
+  // ---------- modo termo ----------
+
+  const autoTermo = ligarAutocompletar(
+    input,
+    $("#sugestoes"),
+    (o) => !!sessao?.selecao[o.topico]?.includes(o.chave),
+    () => !!sessao && sessao.topicos.length > 1
+  );
+
+  function modoRespostaTermo(aberto) {
+    respondida = !aberto;
+    input.disabled = !aberto;
+    btnResponder.hidden = !aberto;
+    btnNaoSei.hidden = !aberto;
+    btnProxima.hidden = aberto;
   }
+
+  function mostrarTermo() {
+    perguntaEl.textContent = TOPICOS[atual.topico].pergunta;
+    fraseEl.textContent = "";
+    fraseEl.append(fraseComDestaque(atual.frase));
+    feedback.hidden = true;
+    input.value = "";
+    modoRespostaTermo(true);
+    btnProxima.textContent = rotuloBotaoProxima();
+    // No celular, focar abre o teclado e pode esconder a frase; só foca em telas largas.
+    if (telaLarga()) input.focus();
+  }
+
+  function corrigirTermo(escolha) {
+    const certa = rotulo(atual.topico, atual.resposta);
+    const resumoCerta = TOPICOS[atual.topico].opcoes[atual.resposta].resumo;
+    const acertou = !!escolha && escolha.topico === atual.topico && escolha.chave === atual.resposta;
+
+    sessao.respostas.push({
+      exercicio: atual,
+      escolha: escolha ? { topico: escolha.topico, chave: escolha.chave } : null,
+      acertou,
+      tempo: Date.now() - inicioPergunta,
+    });
+    sessao.respondidas++;
+
+    if (acertou) {
+      mostrarFeedback(feedback, "acerto", "Acertou! " + certa + ".", [atual.explicacao]);
+    } else {
+      const paragrafos = [atual.explicacao, ["Lembre-se: ", resumoCerta]];
+      if (escolha) {
+        paragrafos.push(["Você respondeu " + escolha.rotulo + ": ", TOPICOS[escolha.topico].opcoes[escolha.chave].resumo]);
+      }
+      mostrarFeedback(feedback, "erro", (escolha ? "Errou. A resposta é " : "A resposta é ") + certa + ".", paragrafos);
+    }
+
+    modoRespostaTermo(false);
+    autoTermo.fechar();
+    btnProxima.focus();
+    atualizarPlacar();
+  }
+
+  form.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    if (respondida) return proxima();
+
+    const resposta = input.value;
+    if (!resposta.trim()) return input.focus();
+
+    const permitido = (o) => !!sessao.selecao[o.topico]?.includes(o.chave);
+    const escolha = identificar(resposta, atual.topico, permitido);
+    if (!escolha) {
+      const opcoes = sessao.selecao[atual.topico].map((k) => rotulo(atual.topico, k)).join(", ");
+      if (soOTopico(resposta, atual.topico)) {
+        mostrarFeedback(feedback, "aviso", "Falta a classificação.", ["Escreva a resposta completa. As opções deste tópico são: " + opcoes + "."]);
+      } else {
+        mostrarFeedback(feedback, "aviso", "Não reconheci essa resposta.", ["Use uma das sugestões que aparecem enquanto você digita. Para esta frase, as opções são: " + opcoes + "."]);
+      }
+      autoTermo.fechar();
+      input.select();
+      return;
+    }
+    corrigirTermo(escolha);
+  });
+
+  btnNaoSei.addEventListener("click", () => {
+    if (!respondida) corrigirTermo(null);
+  });
+  btnProxima.addEventListener("click", proxima);
+
+  // ---------- modo análise ----------
+
+  const permitidoAnalise = (o) => TOPICOS_ANALISE.includes(o.topico);
+
+  // Frase da análise com cada termo destacado e numerado.
+  function renderFraseAnalise(analise, alvo) {
+    alvo.textContent = "";
+    const posicoes = localizarTermos(analise);
+    let cursor = 0;
+    posicoes.forEach((pos, i) => {
+      if (!pos) return;
+      if (pos.inicio > cursor) alvo.append(document.createTextNode(analise.frase.slice(cursor, pos.inicio)));
+      const mark = el("mark", "alvo alvo-num", analise.frase.slice(pos.inicio, pos.fim));
+      mark.append(el("sup", "num-termo", String(i + 1)));
+      mark.dataset.termo = String(i);
+      alvo.append(mark);
+      cursor = pos.fim;
+    });
+    if (cursor < analise.frase.length) alvo.append(document.createTextNode(analise.frase.slice(cursor)));
+  }
+
+  function mostrarAnalise() {
+    renderFraseAnalise(atual, fraseAnaliseEl);
+    camposAnalise.textContent = "";
+    feedbackAnalise.hidden = true;
+    camposAtuais = atual.termos.map((termo, i) => {
+      const li = el("li", "campo-termo");
+      const id = "termo-" + i;
+      const label = el("label", "termo-rotulo");
+      label.htmlFor = id;
+      label.append(el("span", "termo-num", String(i + 1)));
+      if (termo.sujeito) {
+        label.append(el("span", "termo-texto", "Sujeito"), el("span", "termo-obs", "não aparece na frase"));
+      } else {
+        label.append(el("span", "termo-texto", termo.trecho));
+      }
+      const campo = el("div", "campo");
+      const inp = document.createElement("input");
+      inp.id = id;
+      inp.type = "text";
+      inp.placeholder = "Classificação...";
+      inp.spellcheck = false;
+      inp.setAttribute("autocapitalize", "off");
+      inp.setAttribute("autocorrect", "off");
+      inp.setAttribute("enterkeyhint", i === atual.termos.length - 1 ? "done" : "next");
+      const lista = el("ul", "sugestoes");
+      lista.hidden = true;
+      campo.append(inp, lista);
+      const resultado = el("div", "termo-resultado");
+      resultado.hidden = true;
+      li.append(label, campo, resultado);
+      camposAnalise.append(li);
+
+      // Enter sem sugestão ativa: vai para o próximo campo (ou corrige, no último).
+      const auto = ligarAutocompletar(inp, lista, permitidoAnalise, () => true, (ev) => {
+        ev.preventDefault();
+        const prox = camposAtuais[i + 1];
+        if (prox) prox.input.focus();
+        else formAnalise.requestSubmit();
+      });
+      inp.addEventListener("input", () => li.classList.remove("pendente"));
+      // Destaca na frase o termo do campo em foco.
+      inp.addEventListener("focus", () => destacarTermo(i));
+      inp.addEventListener("blur", () => destacarTermo(-1));
+      return { termo, input: inp, auto, resultado, li };
+    });
+
+    respondida = false;
+    btnCorrigir.hidden = false;
+    btnNaoSeiAnalise.hidden = false;
+    btnProximaAnalise.hidden = true;
+    btnProximaAnalise.textContent = rotuloBotaoProxima();
+    if (telaLarga()) camposAtuais[0].input.focus();
+  }
+
+  function destacarTermo(i) {
+    fraseAnaliseEl.querySelectorAll(".alvo-num").forEach((m) => m.classList.toggle("em-foco", m.dataset.termo === String(i)));
+  }
+
+  function corrigirAnalise(desistiu) {
+    // Antes de corrigir, confere se todos os campos têm uma classificação reconhecida.
+    const escolhas = [];
+    if (!desistiu) {
+      let primeiroProblema = null;
+      for (const c of camposAtuais) {
+        const valor = c.input.value;
+        const [topico] = c.termo.resposta.split(".");
+        const escolha = valor.trim() ? identificar(valor, topico, permitidoAnalise) : null;
+        c.li.classList.toggle("pendente", !escolha);
+        if (!escolha && !primeiroProblema) primeiroProblema = c;
+        escolhas.push(escolha);
+      }
+      if (primeiroProblema) {
+        mostrarFeedback(feedbackAnalise, "aviso", "Preencha todos os termos.", [
+          "Cada campo precisa de uma classificação reconhecida. Use as sugestões que aparecem enquanto você digita, ou toque em “Não sei” para ver as respostas.",
+        ]);
+        primeiroProblema.input.focus();
+        return;
+      }
+    }
+
+    const tempoPorTermo = (Date.now() - inicioPergunta) / camposAtuais.length;
+    let acertos = 0;
+    camposAtuais.forEach((c, i) => {
+      const [topico, chave] = c.termo.resposta.split(".");
+      const escolha = desistiu ? null : escolhas[i];
+      const acertou = !!escolha && escolha.topico === topico && escolha.chave === chave;
+      if (acertou) acertos++;
+
+      // Registro no mesmo formato do modo termo, para o relatório funcionar igual.
+      const fraseMarcada = c.termo.sujeito
+        ? atual.frase
+        : (() => {
+            const pos = localizarTermos(atual)[i];
+            return atual.frase.slice(0, pos.inicio) + "[" + c.termo.trecho + "]" + atual.frase.slice(pos.fim);
+          })();
+      sessao.respostas.push({
+        exercicio: {
+          topico,
+          resposta: chave,
+          frase: fraseMarcada,
+          explicacao: c.termo.explicacao,
+          termoOculto: !!c.termo.sujeito,
+          analise: atual,
+        },
+        escolha: escolha ? { topico: escolha.topico, chave: escolha.chave } : null,
+        acertou,
+        tempo: tempoPorTermo,
+      });
+
+      c.auto.fechar();
+      c.input.disabled = true;
+      c.li.classList.remove("pendente");
+      c.li.classList.add(acertou ? "certo" : "errado");
+      c.resultado.textContent = "";
+      const linha = el("p", "termo-linha");
+      if (acertou) {
+        linha.append(el("span", "termo-status acerto", "✓ Correto"));
+      } else {
+        linha.append(el("span", "termo-status erro", escolha ? "✗ Errado" : "✗ Resposta"));
+        linha.append(" ", el("b", null, rotulo(topico, chave)));
+      }
+      c.resultado.append(linha, el("p", "termo-explicacao", c.termo.explicacao));
+      c.resultado.hidden = false;
+    });
+    sessao.respondidas++;
+
+    const total = camposAtuais.length;
+    if (acertos === total) {
+      mostrarFeedback(feedbackAnalise, "acerto", `Perfeito! ${acertos} de ${total} termos corretos.`, []);
+    } else if (desistiu) {
+      mostrarFeedback(feedbackAnalise, "erro", "Veja a análise completa acima.", []);
+    } else {
+      mostrarFeedback(feedbackAnalise, "erro", `${acertos} de ${total} termos corretos.`, ["Veja a correção e a explicação em cada termo acima."]);
+    }
+
+    respondida = true;
+    btnCorrigir.hidden = true;
+    btnNaoSeiAnalise.hidden = true;
+    btnProximaAnalise.hidden = false;
+    btnProximaAnalise.focus();
+    atualizarPlacar();
+  }
+
+  formAnalise.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    if (respondida) return proxima();
+    corrigirAnalise(false);
+  });
+  btnNaoSeiAnalise.addEventListener("click", () => {
+    if (!respondida) corrigirAnalise(true);
+  });
+  btnProximaAnalise.addEventListener("click", proxima);
 
   // ---------- relatório ----------
 
   function finalizarSessao() {
     sessao.fim = Date.now();
     clearInterval(relogio);
-    fecharSugestoes();
+    autoTermo.fechar();
+    camposAtuais.forEach((c) => c.auto.fechar());
     const rel = calcularRelatorio();
     salvarNoHistorico(rel);
     renderRelatorio(rel);
@@ -702,6 +1005,7 @@
 
     return {
       total: resp.length,
+      unidades: sessao.respondidas,
       planejadas: sessao.perguntas.length,
       acertos,
       tempo,
@@ -734,6 +1038,7 @@
   }
 
   function renderRelatorio(rel) {
+    const analise = sessao.modo === "analise";
     const nota = pct(rel.acertos, rel.total);
     let titulo;
     if (!rel.total) titulo = "Sessão encerrada";
@@ -743,37 +1048,33 @@
     else titulo = "Continue praticando!";
     $("#rel-titulo").textContent = titulo;
 
-    const incompleta = rel.total < rel.planejadas;
+    const incompleta = rel.unidades < rel.planejadas;
     $("#rel-subtitulo").textContent =
-      `Você respondeu ${rel.total} de ${rel.planejadas} perguntas` +
+      (analise
+        ? `Análise da frase (avançado): você analisou ${rel.unidades} de ${rel.planejadas} frases, com ${rel.total} termos ao todo`
+        : `Você respondeu ${rel.unidades} de ${rel.planejadas} perguntas`) +
       (incompleta ? " (sessão encerrada antes do fim)." : ".");
 
     $("#rel-nota").textContent = nota + "%";
     $("#rel-acertos").textContent = rel.acertos;
     $("#rel-erros").textContent = rel.total - rel.acertos;
     $("#rel-tempo").textContent = formatarTempo(rel.tempo);
-    $("#rel-media").textContent = rel.total ? formatarSegundos(rel.tempo / rel.total) : "—";
+    $("#rel-media").textContent = rel.unidades ? formatarSegundos(rel.tempo / rel.unidades) : "—";
+    $("#rel-media-rotulo").textContent = analise ? "por frase" : "por pergunta";
 
     // Por tópico
     const relTopicos = $("#rel-topicos");
     relTopicos.textContent = "";
-    for (const t of sessao.topicos) {
+    for (const t of Object.keys(TOPICOS)) {
       const d = rel.porTopico[t];
       if (!d) continue;
-      relTopicos.append(linhaDesempenho(TOPICOS[t].nome, d.acertos, d.total, "média de " + formatarSegundos(d.tempo / d.total)));
+      relTopicos.append(linhaDesempenho(TOPICOS[t].nome, d.acertos, d.total, analise ? null : "média de " + formatarSegundos(d.tempo / d.total)));
     }
 
     // Pontos fortes e fracos, por classificação
-    const bem = rel.classes
-      .filter((c) => c.acertos / c.total >= LIMITE_BOM)
-      .sort((a, b) => b.acertos / b.total - a.acertos / a.total || b.total - a.total);
-    const melhorar = rel.classes
-      .filter((c) => c.acertos / c.total < LIMITE_MELHORAR)
-      .sort((a, b) => a.acertos / a.total - b.acertos / b.total || b.total - a.total);
-    const meio = rel.classes.filter((c) => {
-      const p = c.acertos / c.total;
-      return p >= LIMITE_MELHORAR && p < LIMITE_BOM;
-    });
+    const taxa = (c) => c.acertos / c.total;
+    const bem = rel.classes.filter((c) => taxa(c) >= LIMITE_BOM).sort((a, b) => taxa(b) - taxa(a) || b.total - a.total);
+    const melhorar = rel.classes.filter((c) => taxa(c) < LIMITE_BOM).sort((a, b) => taxa(a) - taxa(b) || b.total - a.total);
 
     const ulBem = $("#rel-bem");
     ulBem.textContent = "";
@@ -782,23 +1083,19 @@
 
     const ulMelhorar = $("#rel-melhorar");
     ulMelhorar.textContent = "";
-    for (const c of [...melhorar, ...meio]) {
+    for (const c of melhorar) {
       const li = itemPonto(rotuloCurto(c.topico, c.chave), `${c.acertos}/${c.total} · ${pct(c.acertos, c.total)}%`);
-      const dica = el("span", "ponto-dica", TOPICOS[c.topico].opcoes[c.chave].resumo);
-      li.append(dica);
+      li.append(el("span", "ponto-dica", TOPICOS[c.topico].opcoes[c.chave].resumo));
       ulMelhorar.append(li);
     }
-    if (!melhorar.length && !meio.length) ulMelhorar.append(el("li", "vazio", "Nada por aqui. Você acertou pelo menos 80% em todas as classificações!"));
+    if (!melhorar.length) ulMelhorar.append(el("li", "vazio", "Nada por aqui. Você acertou pelo menos 80% em todas as classificações!"));
 
     // Confusões
     const ulConf = $("#rel-confusoes");
     ulConf.textContent = "";
     for (const c of rel.confusoes.slice(0, 6)) {
       ulConf.append(
-        itemPonto(
-          `Respondeu ${rotuloCurto(...c.dada)} quando era ${rotuloCurto(...c.certa)}`,
-          c.vezes + (c.vezes > 1 ? " vezes" : " vez")
-        )
+        itemPonto(`Respondeu ${rotuloCurto(...c.dada)} quando era ${rotuloCurto(...c.certa)}`, c.vezes + (c.vezes > 1 ? " vezes" : " vez"))
       );
     }
     $("#rel-confusoes-cartao").hidden = !rel.confusoes.length;
@@ -810,10 +1107,8 @@
       const ex = r.exercicio;
       const li = el("li", "erro-item");
       const frase = el("p", "erro-frase");
-      ex.frase.split(/\[(.+?)\]/).forEach((parte, i) => {
-        if (i % 2 === 1) frase.append(el("mark", "alvo", parte));
-        else if (parte) frase.append(document.createTextNode(parte));
-      });
+      if (ex.termoOculto) frase.append(el("span", "erro-oculto", "Sujeito (não aparece) · "));
+      frase.append(fraseComDestaque(ex.frase));
       const resp = el("p", "erro-respostas");
       resp.append(
         el("span", "erro-sua", "Sua resposta: " + (r.escolha ? rotuloCurto(r.escolha.topico, r.escolha.chave) : "Não sei")),
@@ -827,12 +1122,19 @@
   }
 
   $("#btn-refazer-erros").addEventListener("click", () => {
-    const erros = sessao.respostas.filter((r) => !r.acertou).map((r) => r.exercicio);
-    if (!erros.length) return;
+    const erradas = sessao.respostas.filter((r) => !r.acertou);
+    if (!erradas.length) return;
+    if (sessao.modo === "analise") {
+      // Refaz as frases que tiveram pelo menos um termo errado.
+      const frases = [...new Set(erradas.map((r) => r.exercicio.analise))];
+      iniciarSessao("analise", embaralhar(frases), selecaoAnalise());
+      return;
+    }
     // Mantém as mesmas classificações da sessão original nas sugestões.
+    const exercicios = erradas.map((r) => r.exercicio);
     const sel = {};
-    for (const e of erros) sel[e.topico] = sessao.selecao[e.topico];
-    iniciarSessao(embaralhar(erros), sel);
+    for (const e of exercicios) sel[e.topico] = sessao.selecao[e.topico];
+    iniciarSessao("termo", embaralhar(exercicios), sel);
   });
 
   $("#btn-nova-sessao").addEventListener("click", () => {

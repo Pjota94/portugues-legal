@@ -19,11 +19,31 @@
         <h2>Nova sessão de treino</h2>
         <p class="instrucao">Escolha os tópicos e quantas perguntas quer responder. Em cada frase, um trecho vem destacado e você escreve a classificação completa dele, como “Substantivo Abstrato” ou “Objeto Direto Pleonástico”. No final, você recebe um relatório com o tempo, os acertos e os pontos a melhorar.</p>
 
-        <h3 class="secao-titulo">1. Tópicos</h3>
-        <div id="lista-topicos" class="lista-topicos"></div>
-        <button type="button" id="btn-todas" class="btn secundario btn-pequeno">Marcar / desmarcar todos</button>
+        <h3 class="secao-titulo">Modo</h3>
+        <div class="modos" role="radiogroup" aria-label="Modo de treino">
+          <label class="modo-opcao">
+            <input type="radio" name="modo" value="termo" checked>
+            <span class="modo-texto">
+              <span class="modo-nome">Classificar termo</span>
+              <span class="modo-desc">Uma frase por vez, com um trecho destacado para classificar.</span>
+            </span>
+          </label>
+          <label class="modo-opcao">
+            <input type="radio" name="modo" value="analise">
+            <span class="modo-texto">
+              <span class="modo-nome">Análise da frase <span class="selo">Avançado</span></span>
+              <span class="modo-desc">Classifique todos os termos da frase: sujeito, verbo, complementos e advérbios.</span>
+            </span>
+          </label>
+        </div>
 
-        <h3 class="secao-titulo">2. Quantidade de perguntas</h3>
+        <div id="bloco-topicos">
+          <h3 class="secao-titulo">Tópicos</h3>
+          <div id="lista-topicos" class="lista-topicos"></div>
+          <button type="button" id="btn-todas" class="btn secundario btn-pequeno">Marcar / desmarcar todos</button>
+        </div>
+
+        <h3 class="secao-titulo" id="titulo-qtd">Quantidade de perguntas</h3>
         <div class="quantidade">
           <label for="qtd-perguntas" class="sr-only">Quantidade de perguntas</label>
           <input id="qtd-perguntas" type="number" inputmode="numeric" min="1" max="500" value="20">
@@ -65,11 +85,25 @@
         </div>
       </div>
       <div class="progresso-sessao">
-        <div class="progresso-texto">Pergunta <b id="progresso">0 de 0</b></div>
+        <div class="progresso-texto"><b id="progresso">Pergunta 0 de 0</b></div>
         <div class="barra"><span id="progresso-barra" class="barra-preenchida barra-progresso"></span></div>
       </div>
 
-      <div class="cartao cartao-questao">
+      <div id="cartao-analise" class="cartao cartao-questao" hidden>
+        <p class="pergunta">Classifique cada termo numerado da frase.</p>
+        <p id="frase-analise" class="frase"></p>
+        <form id="form-analise" autocomplete="off" novalidate>
+          <ol id="campos-analise" class="campos-analise"></ol>
+          <div class="botoes-resposta">
+            <button type="submit" id="btn-corrigir" class="btn primario">Corrigir</button>
+            <button type="button" id="btn-nao-sei-analise" class="btn secundario">Não sei</button>
+            <button type="button" id="btn-proxima-analise" class="btn primario" hidden>Próxima →</button>
+          </div>
+        </form>
+        <div id="feedback-analise" class="feedback" role="status" aria-live="polite" hidden></div>
+      </div>
+
+      <div id="cartao-termo" class="cartao cartao-questao">
         <p id="pergunta" class="pergunta"></p>
         <p id="frase" class="frase"></p>
 
@@ -103,7 +137,7 @@
           <div class="numero"><span class="numero-valor acerto" id="rel-acertos">0</span><span class="numero-rotulo">acertos</span></div>
           <div class="numero"><span class="numero-valor erro" id="rel-erros">0</span><span class="numero-rotulo">erros</span></div>
           <div class="numero"><span class="numero-valor" id="rel-tempo">0:00</span><span class="numero-rotulo">tempo total</span></div>
-          <div class="numero"><span class="numero-valor" id="rel-media">0s</span><span class="numero-rotulo">por pergunta</span></div>
+          <div class="numero"><span class="numero-valor" id="rel-media">0s</span><span class="numero-rotulo" id="rel-media-rotulo">por pergunta</span></div>
         </div>
       </div>
 
@@ -151,6 +185,7 @@
   <script src="js/dados/sujeito.js"></script>
   <script src="js/dados/predicacao.js"></script>
   <script src="js/dados/complemento.js"></script>
+  <script src="js/dados/analise.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

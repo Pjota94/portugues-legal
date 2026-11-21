@@ -328,6 +328,95 @@ main { max-width: 760px; margin: 0 auto; padding-block: 0 3rem; }
 .historico .num { font-variant-numeric: tabular-nums; }
 .historico tr:last-child td { border-bottom: 0; }
 
+/* Modo de treino */
+.modos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: .6rem; margin-top: .6rem; }
+.modo-opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.modo-opcao:has(input:checked) { border-color: var(--primaria); background: var(--primaria-suave); }
+.modo-opcao input { width: 1.2rem; height: 1.2rem; margin: .15rem 0 0; flex: none; accent-color: var(--primaria); }
+.modo-texto { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.modo-nome { font-weight: 600; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.modo-desc { font-size: .88rem; color: var(--texto-suave); line-height: 1.4; }
+.selo {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .1rem .45rem;
+  border-radius: 999px;
+  background: var(--destaque-bg);
+  color: var(--texto);
+}
+
+/* ---------- Modo análise ---------- */
+.alvo-num { text-decoration: none; border-bottom: 3px solid var(--destaque-linha); border-radius: 4px 4px 0 0; }
+.alvo-num.em-foco { outline: 2px solid var(--primaria); outline-offset: 1px; }
+.num-termo {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: .55em;
+  font-weight: 700;
+  color: var(--primaria);
+  margin-left: .15em;
+  vertical-align: super;
+  line-height: 0;
+}
+.campos-analise { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: .85rem; }
+.campo-termo {
+  display: grid;
+  gap: .4rem;
+  padding: .75rem;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+}
+.campo-termo.pendente { border-color: var(--aviso); background: var(--aviso-bg); }
+.campo-termo.certo { border-color: var(--acerto); background: var(--acerto-bg); }
+.campo-termo.errado { border-color: var(--erro); background: var(--erro-bg); }
+.termo-rotulo { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; font-weight: 600; }
+.termo-num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--primaria);
+  color: #fff;
+  font-size: .85rem;
+  font-variant-numeric: tabular-nums;
+  align-self: center;
+}
+.termo-texto { font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; }
+.termo-obs { font-size: .8rem; font-weight: 400; color: var(--texto-suave); }
+.campo-termo input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  min-height: 44px;
+  padding: .6rem .9rem;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: var(--cartao);
+  color: var(--texto);
+}
+.campo-termo input:focus { outline: 2px solid var(--primaria); outline-offset: 1px; }
+.campo-termo input:disabled { opacity: .85; }
+.termo-resultado p { margin: 0; }
+.termo-linha { font-size: .95rem; }
+.termo-status { font-weight: 700; }
+.termo-status.acerto { color: var(--acerto); }
+.termo-status.erro { color: var(--erro); }
+.termo-explicacao { font-size: .9rem; color: var(--texto-suave); margin-top: .25rem !important; }
+.erro-oculto { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: .85rem; font-weight: 600; color: var(--texto-suave); }
+
 /* ---------- Progresso da sessão ---------- */
 .progresso-sessao { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
 .progresso-texto { font-size: .9rem; color: var(--texto-suave); white-space: nowrap; font-variant-numeric: tabular-nums; }
