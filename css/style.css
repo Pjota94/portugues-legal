@@ -254,6 +254,108 @@ main { max-width: 760px; margin: 0 auto; padding-block: 0 3rem; }
 .barra-preenchida { display: block; height: 100%; background: var(--acerto); transition: width .3s; }
 .desempenho-valor { text-align: right; font-variant-numeric: tabular-nums; color: var(--texto-suave); }
 
+.desempenho-nome small { display: block; font-size: .78rem; color: var(--texto-suave); }
+.barra-preenchida.medio { background: var(--destaque-linha); }
+.barra-preenchida.ruim { background: var(--erro); }
+
+/* ---------- Configuração da sessão ---------- */
+.secao-titulo { font-size: 1rem; margin: 1.5rem 0 .25rem; }
+.btn-pequeno { min-height: 38px; padding: .45rem .9rem; font-size: .9rem; }
+.quantidade { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: .6rem; }
+#qtd-perguntas {
+  width: 6.5rem;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-height: 44px;
+  padding: .5rem .75rem;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: var(--bg);
+  color: var(--texto);
+}
+#qtd-perguntas:focus { outline: 2px solid var(--primaria); outline-offset: 1px; }
+.atalhos-qtd { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip-btn {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  min-height: 40px;
+  padding: .35rem .8rem;
+  border-radius: 999px;
+  border: 1px solid var(--borda);
+  background: transparent;
+  color: var(--texto);
+  cursor: pointer;
+}
+.chip-btn:hover { border-color: var(--primaria); }
+.chip-btn.ativo { background: var(--primaria); border-color: var(--primaria); color: #fff; font-weight: 600; }
+.chip-btn:focus-visible { outline: 3px solid var(--primaria); outline-offset: 2px; }
+.info-qtd { font-size: .9rem; color: var(--texto-suave); margin: .5rem 0 1.25rem; }
+
+.tabela-rolagem { overflow-x: auto; }
+.historico { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.historico th { text-align: left; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave); padding: .4rem .5rem; border-bottom: 1px solid var(--borda); }
+.historico td { padding: .55rem .5rem; border-bottom: 1px solid var(--borda); white-space: nowrap; }
+.historico .num { font-variant-numeric: tabular-nums; }
+.historico tr:last-child td { border-bottom: 0; }
+
+/* ---------- Progresso da sessão ---------- */
+.progresso-sessao { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
+.progresso-texto { font-size: .9rem; color: var(--texto-suave); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.progresso-sessao .barra { flex: 1; height: 8px; }
+.barra-progresso { background: var(--primaria); }
+
+/* ---------- Relatório ---------- */
+.resumo-numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(98px, 1fr));
+  gap: .75rem;
+  margin-top: 1rem;
+}
+.numero {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+  padding: .85rem 1rem;
+  border-radius: 10px;
+  background: var(--bg);
+}
+.numero-valor { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.numero-valor.acerto { color: var(--acerto); }
+.numero-valor.erro { color: var(--erro); }
+.numero-rotulo { font-size: .8rem; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .04em; }
+
+.cartao h3 { margin-top: 0; }
+.duas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 0 1rem; }
+.cartao-bom { border-top: 4px solid var(--acerto); }
+.cartao-melhorar { border-top: 4px solid var(--erro); }
+
+.lista-pontos { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.lista-pontos li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: .15rem .75rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--borda);
+}
+.lista-pontos li:last-child { border-bottom: 0; padding-bottom: 0; }
+.lista-pontos li.vazio { display: block; color: var(--texto-suave); border: 0; }
+.ponto-detalhe { font-size: .85rem; color: var(--texto-suave); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ponto-dica { grid-column: 1 / -1; font-size: .85rem; color: var(--texto-suave); line-height: 1.4; }
+
+.lista-erros { margin: 0; padding-left: 1.4rem; display: grid; gap: 1rem; }
+.erro-item p { margin: 0; }
+.erro-frase { font-family: Georgia, "Times New Roman", serif; font-size: 1.1rem; margin-bottom: .3rem !important; }
+.erro-frase .alvo { text-underline-offset: 3px; text-decoration-thickness: 2px; }
+.erro-respostas { display: flex; flex-wrap: wrap; gap: .25rem 1rem; font-size: .9rem; margin-bottom: .3rem !important; }
+.erro-sua { color: var(--erro); }
+.erro-certa { color: var(--acerto); font-weight: 600; }
+.erro-explicacao { font-size: .9rem; color: var(--texto-suave); }
+
+.acoes-relatorio { margin-top: .5rem; }
+
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); border: 0;

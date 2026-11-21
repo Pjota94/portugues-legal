@@ -13,29 +13,60 @@
   </header>
 
   <main>
-    <!-- Tela 1: escolha dos tópicos -->
-    <section id="tela-config" class="cartao">
-      <h2>O que você quer treinar?</h2>
-      <p class="instrucao">Escolha os tópicos. Em cada frase, um trecho vem destacado e você escreve a classificação completa dele, como “Substantivo Abstrato” ou “Objeto Direto Pleonástico”.</p>
+    <!-- Tela 1: configuração da sessão -->
+    <section id="tela-config">
+      <div class="cartao">
+        <h2>Nova sessão de treino</h2>
+        <p class="instrucao">Escolha os tópicos e quantas perguntas quer responder. Em cada frase, um trecho vem destacado e você escreve a classificação completa dele, como “Substantivo Abstrato” ou “Objeto Direto Pleonástico”. No final, você recebe um relatório com o tempo, os acertos e os pontos a melhorar.</p>
 
-      <div id="lista-topicos" class="lista-topicos"></div>
+        <h3 class="secao-titulo">1. Tópicos</h3>
+        <div id="lista-topicos" class="lista-topicos"></div>
+        <button type="button" id="btn-todas" class="btn secundario btn-pequeno">Marcar / desmarcar todos</button>
 
-      <div class="acoes">
-        <button type="button" id="btn-todas" class="btn secundario">Marcar / desmarcar todos</button>
-        <button type="button" id="btn-comecar" class="btn primario">Começar treino</button>
+        <h3 class="secao-titulo">2. Quantidade de perguntas</h3>
+        <div class="quantidade">
+          <label for="qtd-perguntas" class="sr-only">Quantidade de perguntas</label>
+          <input id="qtd-perguntas" type="number" inputmode="numeric" min="1" max="500" value="20">
+          <div class="atalhos-qtd" id="atalhos-qtd">
+            <button type="button" class="chip-btn" data-qtd="10">10</button>
+            <button type="button" class="chip-btn" data-qtd="20">20</button>
+            <button type="button" class="chip-btn" data-qtd="50">50</button>
+            <button type="button" class="chip-btn" data-qtd="70">70</button>
+            <button type="button" class="chip-btn" data-qtd="100">100</button>
+          </div>
+        </div>
+        <p id="info-qtd" class="info-qtd"></p>
+
+        <div class="acoes">
+          <button type="button" id="btn-comecar" class="btn primario">Iniciar sessão</button>
+        </div>
+        <p id="aviso-config" class="aviso" role="alert"></p>
       </div>
-      <p id="aviso-config" class="aviso" role="alert"></p>
+
+      <div id="historico-cartao" class="cartao" hidden>
+        <h3>Sessões anteriores</h3>
+        <div class="tabela-rolagem">
+          <table class="historico">
+            <thead><tr><th>Data</th><th>Perguntas</th><th>Acertos</th><th>Tempo</th></tr></thead>
+            <tbody id="historico"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- Tela 2: treino -->
     <section id="tela-treino" hidden>
       <div class="barra-topo">
-        <button type="button" id="btn-voltar" class="btn link">← Trocar tópicos</button>
+        <button type="button" id="btn-encerrar" class="btn link">Encerrar sessão</button>
         <div class="placar">
+          <span class="placar-item" title="Tempo">⏱ <b id="cronometro">0:00</b></span>
           <span class="placar-item acerto" title="Acertos">✓ <b id="placar-acertos">0</b></span>
           <span class="placar-item erro" title="Erros">✗ <b id="placar-erros">0</b></span>
-          <span class="placar-item">Frase <b id="progresso">0 / 0</b></span>
         </div>
+      </div>
+      <div class="progresso-sessao">
+        <div class="progresso-texto">Pergunta <b id="progresso">0 de 0</b></div>
+        <div class="barra"><span id="progresso-barra" class="barra-preenchida barra-progresso"></span></div>
       </div>
 
       <div class="cartao cartao-questao">
@@ -60,10 +91,52 @@
         <div id="feedback" class="feedback" role="status" aria-live="polite" hidden></div>
       </div>
 
-      <details class="cartao desempenho-cartao" open>
-        <summary>Desempenho nesta sessão</summary>
-        <div id="desempenho" class="desempenho"></div>
-      </details>
+    </section>
+
+    <!-- Tela 3: relatório -->
+    <section id="tela-relatorio" hidden>
+      <div class="cartao">
+        <h2 id="rel-titulo">Relatório da sessão</h2>
+        <p id="rel-subtitulo" class="instrucao"></p>
+        <div class="resumo-numeros">
+          <div class="numero"><span class="numero-valor" id="rel-nota">0%</span><span class="numero-rotulo">de acertos</span></div>
+          <div class="numero"><span class="numero-valor acerto" id="rel-acertos">0</span><span class="numero-rotulo">acertos</span></div>
+          <div class="numero"><span class="numero-valor erro" id="rel-erros">0</span><span class="numero-rotulo">erros</span></div>
+          <div class="numero"><span class="numero-valor" id="rel-tempo">0:00</span><span class="numero-rotulo">tempo total</span></div>
+          <div class="numero"><span class="numero-valor" id="rel-media">0s</span><span class="numero-rotulo">por pergunta</span></div>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h3>Desempenho por tópico</h3>
+        <div id="rel-topicos" class="desempenho"></div>
+      </div>
+
+      <div class="duas-colunas">
+        <div class="cartao cartao-bom">
+          <h3>Onde você foi bem</h3>
+          <ul id="rel-bem" class="lista-pontos"></ul>
+        </div>
+        <div class="cartao cartao-melhorar">
+          <h3>O que precisa melhorar</h3>
+          <ul id="rel-melhorar" class="lista-pontos"></ul>
+        </div>
+      </div>
+
+      <div id="rel-confusoes-cartao" class="cartao" hidden>
+        <h3>Confusões mais frequentes</h3>
+        <ul id="rel-confusoes" class="lista-pontos"></ul>
+      </div>
+
+      <div id="rel-erros-cartao" class="cartao" hidden>
+        <h3>Revise seus erros</h3>
+        <ol id="rel-lista-erros" class="lista-erros"></ol>
+      </div>
+
+      <div class="acoes acoes-relatorio">
+        <button type="button" id="btn-refazer-erros" class="btn secundario">Refazer só os erros</button>
+        <button type="button" id="btn-nova-sessao" class="btn primario">Nova sessão</button>
+      </div>
     </section>
   </main>
 

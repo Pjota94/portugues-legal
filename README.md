@@ -6,6 +6,23 @@ O usuário escolhe os tópicos, recebe frases com um trecho destacado e escreve 
 classificação completa (ex.: “Substantivo Abstrato”, “Objeto Direto Pleonástico”).
 Enquanto digita, o site sugere as classificações possíveis. Se errar, o site explica o porquê.
 
+## Sessão de treino
+
+1. Escolha os tópicos e a quantidade de perguntas (ex.: 70). As perguntas são distribuídas
+   de forma equilibrada entre os tópicos; só há repetição se a quantidade passar do banco de frases.
+2. Durante a sessão, um cronômetro marca o tempo e o placar mostra acertos e erros.
+   “Encerrar sessão” gera o relatório com o que já foi respondido.
+3. No final, o relatório mostra:
+   - percentual de acertos, acertos, erros, tempo total e tempo médio por pergunta;
+   - desempenho por tópico;
+   - onde você foi bem (classificações com 80% ou mais de acerto);
+   - o que precisa melhorar (abaixo de 80%), com um lembrete da regra;
+   - as confusões mais frequentes (ex.: respondeu VTD quando era VTI);
+   - a lista dos erros com a frase, sua resposta, a correta e a explicação.
+4. “Refazer só os erros” inicia uma nova sessão apenas com as frases erradas.
+
+As últimas sessões ficam salvas no navegador e aparecem na tela inicial.
+
 ## Tópicos
 
 | Tópico | Classificações | Frases |
